@@ -1,0 +1,189 @@
+# https://docs.openstack.org/diskimage-builder/latest/developer/vhd_creation.html
+# https://launchpad.net/~openstack-ci-core/+archive/ubuntu/vhd-util
+
+
+1) Create Dockerfile
+
+vim Dockerfile
+
+FROM ubuntu:16.04
+RUN apt-get update && \
+apt-get install -y software-properties-common && \
+add-apt-repository ppa:openstack-ci-core/vhd-util && \
+apt-get update && \
+apt-get install -y vhd-util
+
+RUN vhd-util --version && which vhd-util
+
+
+2) Build image
+docker build -t vhd-util-xenial .
+
+
+3) Export portable bundle
+
+docker run vhd-util-xenial bash -c '
+set -e
+echo "Locating vhd-util..."
+VHD_PATH=$(which vhd-util)
+echo "Found: $VHD_PATH"
+
+mkdir -p /portable/bin /portable/lib
+
+# Copy binary
+cp "$VHD_PATH" /portable/bin/vhd-util
+
+# Copy all shared libraries
+ldd "$VHD_PATH" | grep "=>" | awk "{print \$3}" | while read lib; do
+    [ -f "$lib" ] && cp "$lib" /portable/lib/
+done
+
+# Copy dynamic linker
+cp /lib64/ld-linux-x86-64.so.2 /portable/lib/
+
+# Test run
+/portable/lib/ld-linux-x86-64.so.2 --library-path /portable/lib /portable/bin/vhd-util --version
+
+# Create tarball
+cd /portable && tar czf /tmp/vhd-util-portable.tar.gz .
+
+echo "Portable bundle ready: /tmp/vhd-util-portable.tar.gz"
+'
+
+
+4) Copy 'vhd-util-portable.tar.gz' to host
+docker cp $(docker ps -lq):/tmp/vhd-util-portable.tar.gz ./vhd-util-portable.tar.gz
+
+
+5) Uncompress
+tar xzf vhd-util-portable.tar.gz
+
+
+6) How to execute it
+./lib/ld-linux-x86-64.so.2 --library-path ./lib ./bin/vhd-util --version
+
+7) Convert to a fixed vhd file
+qemu-img convert -p -f vpc -O vpc -o subformat=fixed alpine-virt2.vhd alpine-virt2-fixed.vhd
+
+8) Convert to a dynamic vhd file while also getting:
+   - creator-application = tap
+   - BATMAP present
+   - 2 MiB blocks
+   - Valid checksums
+   - No Error 396
+
+
+/opt/lib/ld-linux-x86-64.so.2 --library-path /opt/lib /opt/bin/vhd-util convert -i 'alpine-virt2-fixed.vhd' -o 'alpine-virt2-rs.vhd' -s 1 -t 2
+Back up source to alpine-virt2-fixed.vhd.bak.
+Converting to alpine-virt2-rs.vhd.
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Done!
+
+
+9) Checking VHD file
+
+vhd-tool info alpine-virt2-rs.vhd
+
+field                    |value                                           |
+-------------------------|------------------------------------------------|
+features                 |                                                |
+data-offset              |512                                             |
+time-stamp               |815114686                                       |
+creator-application      |tap                                            |
+creator_version          |65539                                           |
+creator-host-os          |Other 0                                         |
+original-size            |8589934592                                      |
+current-size             |8589934592                                      |
+geometry                 |{ cylinders = 16644; heads = 16; sectors = 63 } |
+disk-type                |Dynamic_hard_disk                               |
+footer-checksum          |-3908                                           |
+uuid                     |4fae27fa-42aa-459b-8325-17b0c3f6714e            |
+saved-state              |false                                           |
+table-offset             |1536                                            |
+max-table-entries        |4096                                            |
+block-size-sectors-shift |12                                              |
+header-checksum          |-2969                                           |
+parent_unique_id         |00000000-0000-0000-0000-000000000000            |
+parent-time-stamp        |0                                               |
+parent-unicode-name      |                                                |
+parent-locator-0         |(None 0 0, 0, 0x0, )                            |
+parent-locator-1         |(None 0 0, 0, 0x0, )                            |
+parent-locator-2         |(None 0 0, 0, 0x0, )                            |
+parent-locator-3         |(None 0 0, 0, 0x0, )                            |
+parent-locator-4         |(None 0 0, 0, 0x0, )                            |
+parent-locator-5         |(None 0 0, 0, 0x0, )                            |
+parent-locator-6         |(None 0 0, 0, 0x0, )                            |
+parent-locator-7         |(None 0 0, 0, 0x0, )                            |
+batmap-version           |1.2                                             |
+batmap-offset            |18432                                           |
+batmap-size-in-sectors   |1                                               |
+batmap-checksum          |-130561                                         |
+
+
+vhd-util read -p -n alpine-virt2-rs.vhd
+
+VHD Footer Summary:
+-------------------
+Cookie              : conectix
+Features            : (0x00000002) <RESV>
+File format version : Major: 1, Minor: 0
+Data offset         : 512
+Timestamp           : Thu Oct 30 04:44:46 2025
+Creator Application : 'tap'
+Creator version     : Major: 1, Minor: 3
+Creator OS          : Unknown!
+Original disk size  : 8192 MB (8589934592 Bytes)
+Current disk size   : 8192 MB (8589934592 Bytes)
+Geometry            : Cyl: 16644, Hds: 16, Sctrs: 63
+                    : = 8191 MB (8589901824 Bytes)
+Disk type           : Dynamic hard disk
+Checksum            : 0xfffff0bc|0xfffff0bc (Good!)
+UUID                : 4fae27fa-42aa-459b-8325-17b0c3f6714e
+Saved state         : No
+Hidden              : 0
+
+VHD Header Summary:
+-------------------
+Cookie              : cxsparse
+Data offset (unusd) : 18446744073709551615
+Table offset        : 1536
+Header version      : 0x00010000
+Max BAT size        : 4096
+Block size          : 2097152 (2 MB)
+Parent name         : 
+Parent UUID         : 00000000-0000-0000-0000-000000000000
+Parent timestamp    : Sat Jan  1 00:00:00 2000
+Checksum            : 0xfffff467|0xfffff467 (Good!)
+
+VHD Batmap Summary:
+-------------------
+Batmap offset       : 18432
+Batmap size (secs)  : 1
+Batmap version      : 0x00010002
+Checksum            : 0xfffe01ff|0xfffe01ff (Good!)
+
+
+
+10) Uploading VHD file to a Cloud File container in chunks
+
+swiftly put \
+    --segment-size=s131072000 \
+    --input=alpine-virt2-rs.vhd \
+    ech-alpine-dd/alpine-virt2-rs.vhd
+    
+
+11) Importing VHD file into Saved Images repo
+
+https://pitchfork.rax.io/images/#import_task-images
+
+https://pitchfork.rax.io/images/#get_task_details-images
+
+
+12) Updating Saved Image metadata 
+
+https://pitchfork.rax.io/images/#update_image-images
+
+vm_mode	hvm
+img_config_drive	mandatory
+xenapi_use_agent	Disabled
+
+
