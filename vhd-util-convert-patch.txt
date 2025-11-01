@@ -1,0 +1,44 @@
+docker run --rm -v $(pwd):/out ubuntu:16.04 bash -c '
+set -e
+
+# === 1. UPDATE AND INSTALL PPA ===
+apt-get update && \
+apt-get install -y software-properties-common binutils && \
+add-apt-repository ppa:openstack-ci-core/vhd-util && \
+apt-get update && \
+apt-get install -y vhd-util
+
+# === 2. LOCATE vhd-util ===
+VHD_PATH=$(command -v vhd-util)
+echo "Found vhd-util at: $VHD_PATH"
+
+# === 3. CREATE BUNDLE (NO GLIBC CORES) ===
+mkdir -p /portable/bin /portable/lib
+cp "$VHD_PATH" /portable/bin/vhd-util
+strip /portable/bin/vhd-util
+
+ldd "$VHD_PATH" | grep "=>" | awk "{print \$3}" | while read lib; do
+    case "$lib" in
+        */libc.so.*|*/libpthread.so.*|*/ld-linux-x86-64.so.*|*/libm.so.*|*/librt.so.*|*/libdl.so.*|*/libutil.so.*|*/libgcc_s.so.*)
+            echo "Skipping glibc core: $lib" ;;
+        *) [ -f "$lib" ] && cp "$lib" /portable/lib/ ;;
+    esac
+done
+
+# === 4. WRAPPER SCRIPT ===
+cat > /portable/run-vhd-util <<\EOF
+#!/bin/bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"
+exec "$DIR/bin/vhd-util" "$@"
+EOF
+chmod +x /portable/run-vhd-util
+
+# === 5. TEST BUNDLE ===
+/portable/run-vhd-util --help | grep convert && \
+echo "SUCCESS: vhd-util with convert is ready!"
+
+# === 6. CREATE TARBALL ===
+cd /portable && tar czf /out/vhd-util-portable.tar.gz .
+echo "SUCCESS: vhd-util-portable.tar.gz created!"
+'
