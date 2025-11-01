@@ -1,0 +1,54 @@
+docker run --rm -v $(pwd):/out almalinux:8 bash -c '
+set -e
+
+# === 1. ADD XCP-NG REPOS ===
+cat > /etc/yum.repos.d/xcp-ng.repo <<REPO
+[xcp-ng-base]
+name=XCP-NG Base
+baseurl=http://updates.xcp-ng.org/8/8.3/base/x86_64/
+gpgcheck=0
+enabled=1
+
+[xcp-ng-updates]
+name=XCP-NG Updates
+baseurl=http://updates.xcp-ng.org/8/8.3/updates/x86_64/
+gpgcheck=0
+enabled=1
+REPO
+
+# === 2. INSTALL: tools ===
+dnf install -y blktap vhd-tool
+
+# === 3. LOCATE vhd-tool ===
+VHD_PATH=$(command -v vhd-tool)
+echo "Found vhd-tool at: $VHD_PATH"
+
+# === 4. BUNDLE ONLY NON-GLIBC LIBS ===
+mkdir -p /portable/bin /portable/lib
+cp "$VHD_PATH" /portable/bin/vhd-tool
+strip /portable/bin/vhd-tool
+
+ldd "$VHD_PATH" | grep "=>" | awk "{print \$3}" | while read lib; do
+    case "$lib" in
+        */libc.so.*|*/libpthread.so.*|*/ld-linux-x86-64.so.*|*/libm.so.*|*/librt.so.*|*/libdl.so.*|*/libutil.so.*)
+            echo "Skipping glibc core: $lib" ;;
+        *) [ -f "$lib" ] && cp "$lib" /portable/lib/ ;;
+    esac
+done
+
+# === 5. WRAPPER ===
+cat > /portable/run-vhd-tool <<\EOF
+#!/bin/bash
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export LD_LIBRARY_PATH="$DIR/lib:$LD_LIBRARY_PATH"
+exec "$DIR/bin/vhd-tool" "$@"
+EOF
+chmod +x /portable/run-vhd-tool
+
+# === 6. TEST ===
+/portable/run-vhd-tool --version
+
+# === 7. TARBALL ===
+cd /portable && tar czf /out/vhd-tool-portable.tar.gz .
+echo "SUCCESS: vhd-tool-portable.tar.gz created (clean, minimal, perfect!)"
+'
