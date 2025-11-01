@@ -63,7 +63,7 @@ tar xzf vhd-util-portable.tar.gz
 ./lib/ld-linux-x86-64.so.2 --library-path ./lib ./bin/vhd-util --version
 
 7) Convert to a fixed vhd file
-qemu-img convert -p -f vpc -O vpc -o subformat=fixed alpine-virt2.vhd alpine-virt2-fixed.vhd
+qemu-img convert -p -f vpc -O vpc -o subformat=fixed dynamic_image.vhd fixed_image.vhd
 
 8) Convert to a dynamic vhd file while also getting:
    - creator-application = tap
@@ -73,15 +73,15 @@ qemu-img convert -p -f vpc -O vpc -o subformat=fixed alpine-virt2.vhd alpine-vir
    - No Error 396
 
 
-/opt/lib/ld-linux-x86-64.so.2 --library-path /opt/lib /opt/bin/vhd-util convert -i 'alpine-virt2-fixed.vhd' -o 'alpine-virt2-rs.vhd' -s 1 -t 2
-Back up source to alpine-virt2-fixed.vhd.bak.
-Converting to alpine-virt2-rs.vhd.
+/opt/lib/ld-linux-x86-64.so.2 --library-path /opt/lib /opt/bin/vhd-util convert -i 'fixed_image.vhd' -o 'patch_tap_image.vhd' -s 1 -t 2
+Back up source to fixed_image.vhd.bak.
+Converting to patch_tap_image.vhd.
 >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>Done!
 
 
 9) Checking VHD file
 
-vhd-tool info alpine-virt2-rs.vhd
+vhd-tool info patch_tap_image.vhd
 
 field                    |value                                           |
 -------------------------|------------------------------------------------|
@@ -119,7 +119,7 @@ batmap-size-in-sectors   |1                                               |
 batmap-checksum          |-130561                                         |
 
 
-vhd-util read -p -n alpine-virt2-rs.vhd
+vhd-util read -p -n patch_tap_image.vhd
 
 VHD Footer Summary:
 -------------------
@@ -167,8 +167,8 @@ Checksum            : 0xfffe01ff|0xfffe01ff (Good!)
 
 swiftly put \
     --segment-size=s131072000 \
-    --input=alpine-virt2-rs.vhd \
-    ech-alpine-dd/alpine-virt2-rs.vhd
+    --input=patch_tap_image.vhd \
+    my-cf-container/patch_tap_image.vhd
     
 
 11) Importing VHD file into Saved Images repo
