@@ -8,6 +8,7 @@
 set -e  # stop on any error
 
 echo "=== Installing packages ==="
+setup-apkrepos -cf
 apk add --no-cache cloud-init cloud-utils-growpart e2fsprogs
 
 echo "=== 1. Xen disk driver (xen-blk) ==="
