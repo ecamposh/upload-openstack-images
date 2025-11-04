@@ -4,6 +4,7 @@
 set -e
 
 echo "Installing bash + sudo + cloud-init ..."
+setup-apkrepos -cf
 apk add --no-cache bash sudo cloud-init cloud-utils-growpart e2fsprogs
 
 # 1. Xen drivers
@@ -18,7 +19,9 @@ mkdir -p /etc/cloud/cloud.cfg.d
 cat > /etc/cloud/cloud.cfg.d/10_datasource.cfg <<'EOF'
 datasource_list: [ Ec2, ConfigDrive, None ]
 datasource:
-  Ec2: {strict_id: false}
+  Ec2:
+    timeout: 10
+    max_wait: 20
 EOF
 
 # 20_network.cfg
@@ -29,7 +32,11 @@ network:
     eth0:
       match: {name: "tap*"}
       dhcp4: true
+      dhcp4-overrides:
+        use-routes: true
+        use-dns: true
       set-name: eth0
+      gateway4: null
 EOF
 
 # 30_portal.cfg  ← BASH + wheel
