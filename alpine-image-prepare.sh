@@ -75,7 +75,7 @@ EOF
 echo "/bin/bash" > /etc/newuser-shell
 
 # 4. Rebuild initramfs + services
-mkinitfs -c /etc/mkinitfs/mkinitfs.conf $(ls /lib/modules/)
+# mkinitfs -c /etc/mkinitfs/mkinitfs.conf $(ls /lib/modules/)
 rc-update add cloud-init boot
 rc-update add cloud-init-local boot
 rc-update add networking boot
