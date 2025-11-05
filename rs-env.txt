@@ -165,7 +165,7 @@ Checksum            : 0xfffe01ff|0xfffe01ff (Good!)
 
 10) Uploading VHD file to a Cloud File container in chunks
 
-swiftly put \
+swiftly -v put \
     --segment-size=s131072000 \
     --input=patch_tap_image.vhd \
     my-cf-container/patch_tap_image.vhd
@@ -173,17 +173,33 @@ swiftly put \
 
 11) Importing VHD file into Saved Images repo
 
-https://pitchfork.rax.io/images/#import_task-images
+curl -XPOST -sH "x-auth-token: $TOKEN" https://$REGION.images.api.rackspacecloud.com/v2/tasks \
+-H "Content-Type: application/json" \
+-d '{
+    "type": "import",
+    "input": {
+        "image_properties": {
+            "name": "my-image-name"
+        },
+        "import_from": "my-cf-container/patch_tap_image.vhd"
+    }
+}'
 
-https://pitchfork.rax.io/images/#get_task_details-images
+
+curl -sH "x-auth-token: $TOKEN" https://$REGION.images.api.rackspacecloud.com/v2/tasks/$TASK_ID | jq
 
 
-12) Updating Saved Image metadata 
+12) Updating Saved Image metadata
 
-https://pitchfork.rax.io/images/#update_image-images
+curl -XPATCH -sH "x-auth-token: $TOKEN" https://$REGION.images.api.rackspacecloud.com/v2/images/$IMAGE_UUID \
+-H "Content-Type: application/openstack-images-v2.1-json-patch" \
+-d '[
+    {"op": "add", "path": "/vm_mode", "value": "hvm"},
+    {"op": "add", "path": "/img_config_drive", "value": "mandatory"},
+    {"op": "add", "path": "/xenapi_use_agent", "value": "Disabled"}
+]'
 
-vm_mode	hvm
-img_config_drive	mandatory
-xenapi_use_agent	Disabled
+
+curl -sH "x-auth-token: $TOKEN" https://$REGION.images.api.rackspacecloud.com/v2/images/$IMAGE_UUID | jq
 
 
