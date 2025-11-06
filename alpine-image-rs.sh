@@ -21,22 +21,6 @@ preserve_hostname: False
 manage_etc_hosts: localhost
 network:
   config: disabled
-growpart:
-  mode: auto
-  devices: ['/']
-system_info:
-  distro: alpine
-cloud_init_modules: []
-cloud_config_modules: []
-cloud_final_modules:
-  - mounts
-  - scripts-per-boot
-  - scripts-per-instance
-  - scripts-user
-  - ssh-import-id
-  - locale
-  - set-passwords
-  - network
 EOF
 
 cat > /etc/cloud/cloud.cfg <<'EOF'
@@ -53,7 +37,7 @@ ssh_authorized_keys: [ !!str ]
 hostname: !!str
 fqdn: !!str
 manage_etc_hosts: true
-  distro: rhel
+  distro: alpine
   paths:
     cloud_dir: /var/lib/cloud
     templates_dir: /etc/cloud/templates
