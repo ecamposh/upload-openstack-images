@@ -36,9 +36,9 @@ chmod +x /portable/run-vhd-util
 
 # === 5. TEST BUNDLE ===
 /portable/run-vhd-util --help | grep convert && \
-echo "SUCCESS: vhd-util with convert is ready!"
+echo "SUCCESS: vhd-util with convert is ready"
 
 # === 6. CREATE TARBALL ===
 cd /portable && tar czf /out/vhd-util-portable.tar.gz .
-echo "SUCCESS: vhd-util-portable.tar.gz created!"
+echo "SUCCESS: vhd-util-portable.tar.gz created"
 '
