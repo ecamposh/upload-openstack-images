@@ -1,4 +1,4 @@
-docker run --rm -v $(pwd):/out almalinux:8 bash -c '
+docker run --rm -v $(pwd):/out rockylinux:9 bash -c '
 set -e
 
 # === 1. ADD XCP-NG REPOS ===
@@ -50,5 +50,5 @@ chmod +x /portable/run-vhd-tool
 
 # === 7. TARBALL ===
 cd /portable && tar czf /out/vhd-tool-portable.tar.gz .
-echo "SUCCESS: vhd-tool-portable.tar.gz created (clean, minimal, perfect!)"
+echo "SUCCESS: vhd-tool-portable.tar.gz created"
 '
